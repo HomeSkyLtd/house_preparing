@@ -20,7 +20,7 @@ const ACTIONS = [
 
         message: 'Register controller',
         execute: () => {
-            return new Promise();
+            return new Promise(() => {});
         }
     }/*,
     REGISTER_NODE: 'Register node',
@@ -59,13 +59,13 @@ inquirer.prompt([
                 console.log("Something wrong happened =(");
                 console.log(err.message);
             });
-    });
+    }); 
 
 function askAction() {
     return inquirer.prompt(QUESTIONS)
         .then(answers => {
             var action = answers.action;
-            return ACTIONS[action]()
+            return ACTIONS[action].execute()
                         .then(() => {
                             console.log("Done!");
                         });
