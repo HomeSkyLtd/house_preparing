@@ -26,6 +26,7 @@
   "homepage": "https://github.com/HomeSkyLtd/house_preparing#readme",
   "dependencies": {
     "inquirer": "^1.2.2",
-    "mongodb": "^2.2.11"
+    "mongodb": "^2.2.11",
+    "pbkdf2-password": "^1.2.1"
   }
 }

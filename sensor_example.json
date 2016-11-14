@@ -1,0 +1,17 @@
+{
+    "nodeId": 1,
+    "controllerId": "1",
+    "nodeClass": 1,
+    "accepted": 1,
+    "alive": 1,
+    "extra": {"name": "Temperature Sensor", "room": "Kitchen"},
+    "dataType": [{
+        "id": 1,
+        "measureStrategy": 2,
+        "type": 1,
+        "dataCategory": 1,
+        "unit": "ºC",
+        "range": [-20, 50]
+    }],
+    "commandType": []
+}
