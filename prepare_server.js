@@ -1,5 +1,6 @@
 /*jshint esversion: 6 */
 
+var extend = require('util')._extend;
 var mongo = require('mongodb');
 var inquirer = require('inquirer');
 var fs = require('fs');
@@ -19,6 +20,12 @@ var mongoClient = mongo.MongoClient;
 
 const DEFAULT_URL = 'localhost:27017';
 var db;
+
+function incrementBE (buffer) {
+    for (var i = buffer.length - 1; i >= 0; i--) {
+        if (buffer[i]++ !== 255) break;
+    }
+}
 
 const ACTIONS = [
     {
@@ -192,6 +199,11 @@ const ACTIONS = [
             return inquirer.prompt([
                 {
                     type: 'input',
+                    name: 'houseId',
+                    message: 'Type the id of the house: '
+                },
+                {
+                    type: 'input',
                     name: 'controllerId',
                     message: 'Type the id of the controller: '
                 },
@@ -201,40 +213,108 @@ const ACTIONS = [
                     message: 'Type the filename: '
                 }
             ]).then(answers => {
+                var controllerId = answers.controllerId;
+                if (/^\d+$/.test(controllerId))
+                    controllerId = parseInt(controllerId);
+                var houseId = answers.houseId;
                 var data = fs.readFileSync(answers.filename).toString().split('\n');
                 var header = data[0].split(' ');
                 var nodesInfo = {};
                 var questions = [];
-                for (var i = 0; i < header.length; i++) {
-                    if (header[i] !== "" && header[i] !== 'timestamp') {
+                header.forEach((column) => {
+                    if (column !== "" && column !== 'timestamp') {
                         questions.push({
                             type: 'input',
-                            name: header[i] + '.nodeId',
-                            message: 'Type the nodeId of ' + header[i] + ': '
+                            name: column + '.nodeId',
+                            message: 'Type the nodeId of ' + column + ': '
                         });
-                        if (i == header.length - 1) {
-                            questions.push({
-                                type: 'input',
-                                name: header[i] + '.dataId',
-                                message: 'Type the dataId of ' + header[i] + ': '   
-                            });
-                        }
-                        else {
-                            questions.push({
-                                type: 'input',
-                                name: header[i] + '.commandId',
-                                message: 'Type the commandId of ' + header[i] + ': '   
-                            });
-                        }
+                        questions.push({
+                            type: 'list',
+                            name: column + '.type',
+                            message: column + ' is a:',
+                            choices: [
+                                { name: 'Data', value: 'data' },
+                                { name: 'Command', value: 'command' }
+                            ]
+                        });
+                        questions.push({
+                            type: 'input',
+                            name: column + '.dataId',
+                            message: 'Type the dataId of ' + column + ': ',
+                            when: (input) => {
+                                return input[column + '.type'] === 'data';
+                            }   
+                        });
+                        questions.push({
+                            type: 'input',
+                            name: column + '.commandId',
+                            message: 'Type the commandId of ' + column + ': ',
+                            when: (input) => {
+                                return input[column + '.type'] === 'command';
+                            }   
+                        });
                     }
-                }
-                
+                });
+                return inquirer.prompt(questions)
+                    .then((answers) => {
+                        var nodes = [];
+                        var toInsert = [];
+                        var timestampIndex = -1;
+                        var start = mongo.ObjectID().id;
+                        for (var i = 0; i < header.length; i++) {
+                            if (header[i] !== "" && header[i] !== 'timestamp') {
+                                incrementBE(start);
+                                nodes[i] = {
+                                    nodeId: parseInt(answers[header[i] + '.nodeId']),
+                                    controllerId: controllerId,
+                                    _id: mongo.ObjectID(new Buffer(start)),
+                                    value: null
+                                };
+                                if (answers[header[i] + '.dataId'])
+                                    nodes[i].dataId = parseInt(answers[header[i] + '.dataId']);
+                                else
+                                    nodes[i].commandId = parseInt(answers[header[i] + '.commandId']);
+                            }
+                            else {
+                                nodes[i] = 'timestamp';
+                                timestampIndex = i;
+                            }
+                        }
+                        for (i = 1; i < data.length; i++) {
+                            var line = data[i].split(' ');
+                            var timestamp = parseInt(line[timestampIndex]);
+                            console.log(line);
+                            for (var j = 0; j < line.length; j++) {
+                                if (j === timestampIndex)
+                                    continue;
+                                var value = parseInt(line[j]);
+                                if (line[j].indexOf('.') != -1)
+                                    value = parseFloat(line[i]);
+                                if (value !== nodes[j].value) {
+                                    console.log(mongo.ObjectID(start));
+                                    incrementBE(start);
+                                    toInsert.push(extend(nodes[j], { value: value, timestamp: timestamp, _id: mongo.ObjectID(new Buffer(start)) }));
+                                    nodes[j].value = value;
+                                }
+                            }
+                            if (i == 2)
+                                break;
+                        }
+                        console.log(toInsert);
+                        return db.collection("all_states_" + houseId).insertMany(toInsert)
+                                    .then(() => {
+
+                                        return db.collection("last_states_" + houseId).insertMany(
+                                            nodes.filter(el => { return el !== 'timestamp'; }));
+                                    });
+                    });
             });
         }
     },
     {
         message: 'Exit',
         execute: () => {
+            console.log("Bye!");
             process.exit();
         }
     }
