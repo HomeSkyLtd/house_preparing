@@ -4,6 +4,7 @@ var extend = require('util')._extend;
 var mongo = require('mongodb');
 var inquirer = require('inquirer');
 var fs = require('fs');
+var crypto = require('crypto');
 //Password
 var bkfd2Password = require("pbkdf2-password");
 var hasher = bkfd2Password(
@@ -21,12 +22,14 @@ var mongoClient = mongo.MongoClient;
 const DEFAULT_URL = 'localhost:27017';
 var db;
 
-function incrementBE (buffer) {
-    for (var i = buffer.length - 1; i >= 0; i--) {
-        if (buffer[i]++ !== 255) break;
-    }
+function generateToken(timestamp, nodeId, dataCommandID) {
+    var objId = new mongo.ObjectID();
+    var buf = objId.id;
+    buf.writeInt32BE(timestamp);
+    buf.writeInt32BE(nodeId, 4);
+    buf.writeInt32BE(dataCommandID, 8);
+    return new mongo.ObjectID(buf);
 }
-
 const ACTIONS = [
     {
         message: 'Erase server db',
@@ -260,15 +263,13 @@ const ACTIONS = [
                         var nodes = [];
                         var toInsert = [];
                         var timestampIndex = -1;
-                        var start = mongo.ObjectID().id;
                         for (var i = 0; i < header.length; i++) {
                             if (header[i] !== "" && header[i] !== 'timestamp') {
-                                incrementBE(start);
                                 nodes[i] = {
                                     nodeId: parseInt(answers[header[i] + '.nodeId']),
                                     controllerId: controllerId,
-                                    _id: mongo.ObjectID(new Buffer(start)),
-                                    value: null
+                                    value: null,
+                                    _id: new mongo.ObjectID()
                                 };
                                 if (answers[header[i] + '.dataId'])
                                     nodes[i].dataId = parseInt(answers[header[i] + '.dataId']);
@@ -283,24 +284,31 @@ const ACTIONS = [
                         for (i = 1; i < data.length; i++) {
                             var line = data[i].split(' ');
                             var timestamp = parseInt(line[timestampIndex]);
-                            console.log(line);
                             for (var j = 0; j < line.length; j++) {
                                 if (j === timestampIndex)
                                     continue;
                                 var value = parseInt(line[j]);
-                                if (line[j].indexOf('.') != -1)
-                                    value = parseFloat(line[i]);
-                                if (value !== nodes[j].value) {
-                                    console.log(mongo.ObjectID(start));
-                                    incrementBE(start);
-                                    toInsert.push(extend(nodes[j], { value: value, timestamp: timestamp, _id: mongo.ObjectID(new Buffer(start)) }));
+                                if (line[j].indexOf('.') !== -1) {
+                                    value = parseFloat(line[j]);
+                                }
+                                if (value != nodes[j].value) {
+                                    var toPush = { 
+                                        nodeId: nodes[j].nodeId,
+                                        controllerId: nodes[j].controllerId,
+                                        value: value, 
+                                        timestamp: timestamp,
+                                        _id: new mongo.ObjectID()
+                                    };
+                                    if (nodes[j].dataId)
+                                        toPush.dataId = nodes[j].dataId;
+                                    else
+                                        toPush.commandId = nodes[j].commandId;
+                                    toInsert.push(toPush);
                                     nodes[j].value = value;
                                 }
                             }
-                            if (i == 2)
-                                break;
                         }
-                        console.log(toInsert);
+                        
                         return db.collection("all_states_" + houseId).insertMany(toInsert)
                                     .then(() => {
 
