@@ -62,9 +62,9 @@ const ACTIONS = [
                 }
             ]).then(answers => {
                 defaultHouseId = getNumber(answers.houseId);
-                return db.collection("all_states_" + answers.houseId).drop()
+                return db.collection("all_states_" + answers.houseId).remove()
                         .then(() => {
-                            return db.collection("last_states_" + answers.houseId).drop();            
+                            return db.collection("last_states_" + answers.houseId).remove();            
                         });
             });
         }
@@ -492,7 +492,7 @@ const ACTIONS = [
                 }).then(answers => {
                     var controllerId = getNumber(answers.controllerId);
                     var data = fs.readFileSync(answers.filename).toString().split('\n');
-                    var header = data[0].split(' ');
+                    var header = data[0].split(/(\s+)/).filter(val => { return val.trim() !== ""; });
                     var nodesInfo = {};
                     var questions = [];
                     header.forEach((column) => {
@@ -529,7 +529,7 @@ const ACTIONS = [
                                 }
                             }
                             for (i = 1; i < data.length; i++) {
-                                var line = data[i].split(' ');
+                                var line = data[i].split(/(\s+)/).filter(val => { return val.trim() !== ""; });
                                 if (line.length != header.length)
                                     continue;
                                 var timestamp = parseInt(line[timestampIndex]);
@@ -558,7 +558,8 @@ const ACTIONS = [
                                     }
                                 }
                             }
-                            
+                            if (toInsert.length === 0)
+                                console.log("Nothing to insert");
                             return db.collection("all_states_" + houseId).insertMany(toInsert)
                                         .then(() => {
                                             return db.collection("last_states_" + houseId).insertMany(
