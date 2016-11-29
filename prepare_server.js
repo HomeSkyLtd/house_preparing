@@ -252,6 +252,12 @@ const ACTIONS = [
         execute: () => {
             return inquirer.prompt([
                 {
+                    type: 'input',
+                    name: 'houseId',
+                    message: 'What is the house id?',
+                    default: defaultHouseId
+                },
+                {
                     type: 'editor',
                     name: 'nodeInfo',
                     message: 'Type the node info',
@@ -260,22 +266,9 @@ const ACTIONS = [
                     }
                 }
                 ])
-                .then((answers) => {
-                    //Find house id
-                    return db.collection("agent").findOne(
-                        {
-                            _id: answers.nodeInfo.controllerId
-                        })
-                        .then(result => {
-                            return  {
-                                houseId: result.houseId,
-                                nodeInfo: answers.nodeInfo
-                            };
-                        });
-                })
-                .then(result => {
-                    db.collection("node_" + result.houseId)
-                        .insertOne(result.nodeInfo);
+                .then(answers => {
+                    db.collection("node_" + answers.houseId)
+                        .insertOne(answers.nodeInfo);
                 });
         }
     },
