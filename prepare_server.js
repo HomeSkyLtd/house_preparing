@@ -133,7 +133,7 @@ const ACTIONS = [
                 })
                 .then(choices => {
                     console.table(choices.map((val) => {
-                        if (val.extra)
+                        if (val.extra && (typeof val.extra !== 'string' && !(val.extra instanceof String)))
                             val.extra = JSON.stringify(val.extra);
                         return val;
                     }));
@@ -415,10 +415,10 @@ const ACTIONS = [
                         controllerId: answers.info.controllerId,
                         nodeId: answers.info.nodeId,
                     };
-                    if (answers.info.dataId)
-                        basicInfo.dataId = answers.info.dataId;
-                    if (answers.info.commandId)
-                        basicInfo.commandId = answers.info.commandId;
+                    if (answers.info.kind === "data")
+                        basicInfo.dataId = answers.info.id;
+                    if (answers.info.kind === "command")
+                        basicInfo.commandId = answers.info.id;
                     //Update last_states if this is the last timestamp
                     return db.collection("all_states_" + houseId).find(
                         basicInfo).sort({timestamp: -1}).nextObject()
@@ -511,10 +511,10 @@ const ACTIONS = [
                                         value: null,
                                         _id: new mongo.ObjectID()
                                     };
-                                    if (answers[header[i]].dataId)
-                                        nodes[i].dataId = answers[header[i]].dataId;
+                                    if (answers[header[i]].kind === "data")
+                                        nodes[i].dataId = answers[header[i]].id;
                                     else
-                                        nodes[i].commandId = answers[header[i]].commandId;
+                                        nodes[i].commandId = answers[header[i]].id;
                                 }
                                 else {
                                     nodes[i] = 'timestamp';
@@ -555,8 +555,12 @@ const ACTIONS = [
                                 console.log("Nothing to insert");
                             return db.collection("all_states_" + houseId).insertMany(toInsert)
                                         .then(() => {
-                                            return db.collection("last_states_" + houseId).insertMany(
-                                                nodes.filter(el => { return el !== 'timestamp' && el.value !== null; }));
+                                            //TODO: insert in all_states
+                                           // return db.collection("last_states_" + houseId).insertMany(
+                                               // nodes.filter(el => { return el !== 'timestamp' && el.value !== null; })
+                                               //     .map((el) => {
+
+                                                 //   }));
                                         });
                         });
                 });
@@ -641,11 +645,7 @@ function dataCommandChoices(houseId) {
             var promises = [];
             var infos = [];
             nodes.forEach((node) => {
-                var newNode = {
-                    controllerId: node.controllerId,
-                    nodeId: node.nodeId,
-                };
-                var addToInfos = (array) => {
+                var addToInfos = (array, isData) => {
                     if (array) {
                         array.sort((a,b) => {
                             if (a.dataId && b.dataId)
@@ -658,33 +658,34 @@ function dataCommandChoices(houseId) {
                         });
                         array.forEach(type => {
                             var newType = { 
-                                dataId: type.dataId,
-                                commandId: type.commandId,
+                                controllerId: node.controllerId,
+                                nodeId: node.nodeId,
+                                kind: isData ? "data" : "command",
+                                id: type.id,
                                 extra : node.extra
                             };
-                            if (type.dataId) {
+                            if (isData) {
                                 newType.category = DATA_CATEGORIES.get(type.dataCategory).key;
                             }
-                            else if (type.commandId) {
+                            else {
                                 newType.category = COMMAND_CATEGORIES.get(type.commandCategory).key;
                             }
                             if (type.type)
                                 newType.type = DATA_TYPES.get(type.type).key;
                             if (type.range)
                                 newType.range = JSON.stringify(type.range);
-                            infos.push(Object.assign(newNode, newType));
+                            infos.push(newType);
                         });
                     }
                 };
-                addToInfos(node.dataType);
-                addToInfos(node.commandType);
+                addToInfos(node.dataType, true);
+                addToInfos(node.commandType, false);
             });
             infos.forEach((info) => {
                 promises.push(db.collection("last_states_" + houseId).findOne({
                         nodeId: info.nodeId,
                         controllerId: info.controllerId,
-                        dataId: info.dataId,
-                        commandId: info.commandId
+                        id: info.id
                     }).then((val) => {
                         if (val !== null)
                             info["current value"] = val.value;

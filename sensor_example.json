@@ -6,7 +6,7 @@
     "alive": 1,
     "extra": {"name": "Temperature Sensor", "room": "Kitchen"},
     "dataType": [{
-        "dataId": 1,
+        "id": 1,
         "measureStrategy": 2,
         "type": 1,
         "dataCategory": 1,
@@ -14,7 +14,7 @@
         "range": [-20, 50]
     }],
     "commandType": [{
-        "commandId": 1,
+        "id": 2,
         "type": 2,
         "commandCategory": 4,
         "unit": ""
