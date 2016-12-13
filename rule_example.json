@@ -1,0 +1,16 @@
+{
+    "command": {
+        "nodeId": 3, 
+        "commandId": 0,
+        "value": 22
+    },
+    "clauses": [
+        [
+            { "lhs": 1, "operator": "!=", "rhs": 1}, 
+            {"lhs": 1.1, "operator": "<", "rhs": 2.3}
+        ], 
+        [
+            {"lhs": "1.1", "operator": "<=", "rhs": 20}
+        ]
+    ]
+}
