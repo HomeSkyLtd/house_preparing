@@ -1,0 +1,16 @@
+{
+    "nodeId": 2,
+    "controllerId": "1",
+    "nodeClass": 2,
+    "accepted": 0,
+    "alive": 1,
+    "extra": {},
+    "dataType": [],
+    "commandType": [{
+        "id": 1,
+        "type": 2,
+        "commandCategory": 4,
+        "unit": "on/off",
+        "range": [0, 1]
+    }]
+}

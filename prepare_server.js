@@ -147,9 +147,18 @@ const ACTIONS = [
             return inquirer.prompt([
                 {
                     type: 'confirm',
+                    name: 'associateHouse',
+                    default: false,
+                    message: 'Do you want to associate a house with the controller?'
+                },
+                {
+                    type: 'confirm',
                     name: 'newHouse',
                     default: false,
-                    message: 'Do you want to create a new house for the controller?'
+                    message: 'Do you want to create a new house for the controller?',
+                    when: (input) => {
+                        return input.associateHouse;
+                    }
                 },
                 {
                     type: 'input',
@@ -157,6 +166,8 @@ const ACTIONS = [
                     message: 'So, what is the house id?',
                     default: defaultHouseId,
                     when: (input) => {
+                        if (!input.associateHouse)
+                            return false;
                         defaultHouseId = getNumber(input.houseId);
                         return !input.newHouse;
                     }
@@ -167,6 +178,8 @@ const ACTIONS = [
                     message: 'What houseId do you want (0 for random value)?',
                     default: 0,
                     when: (input) => {
+                        if (!input.associateHouse)
+                            return false;
                         defaultHouseId = getNumber(input.houseId);
                         return input.newHouse;
                     }
@@ -187,6 +200,12 @@ const ACTIONS = [
                     name: 'password',
                     message: 'What is the controller password?',
                     default: 'mypass'
+                },
+                {
+                    type: 'input',
+                    name: 'name',
+                    message: 'What is the controller name?',
+                    default: 'My Controller'
                 }
             ]).then(answers => {
                 return new Promise((accept, reject) => {
@@ -197,48 +216,43 @@ const ACTIONS = [
                         });
                     })
                     .then((hash) => {
-                        if (answers.newHouse) {
+                        if (answers.associateHouse) {
+                            if (answers.newHouse) {
+                                answers.houseId = getNumber(answers.houseId);
+                                if (answers.houseId === 0) {
+                                    return db.collection("house").insertOne({})
+                                        .then((result) => {
+                                            answers.houseId = result.insertedId.toString();
+                                            console.log("Inserted house with id " + 
+                                                answers.houseId);
+                                            return hash;
+                                        });
+                                }
+                                else {
+                                    return db.collection("house").insertOne({_id: answers.houseId})
+                                        .then((result) => {
+                                            console.log("Inserted house with id " + 
+                                                answers.houseId);
+                                            return hash;
+                                        });   
+                                }
+                            }
                             answers.houseId = getNumber(answers.houseId);
-                            if (answers.houseId === 0) {
-                                return db.collection("house").insertOne({})
-                                    .then((result) => {
-                                        answers.houseId = result.insertedId.toString();
-                                        console.log("Inserted house with id " + 
-                                            answers.houseId);
-                                        return hash;
-                                    });
-                            }
-                            else {
-                                return db.collection("house").insertOne({_id: answers.houseId})
-                                    .then((result) => {
-                                        console.log("Inserted house with id " + 
-                                            answers.houseId);
-                                        return hash;
-                                    });   
-                            }
                         }
-                        answers.houseId = getNumber(answers.houseId);
                         return hash;
                     })
                     .then((hash) => {
                         answers.controllerId = getNumber(answers.controllerId);
-                        if (answers.controllerId === 0) {
-                            return db.collection("agent").insertOne({
-                                username: answers.username,
-                                password: hash,
-                                type: "controller",
-                                houseId: answers.houseId
-                            });
-                        }
-                        else {
-                            return db.collection("agent").insertOne({
-                                _id: answers.controllerId,
-                                username: answers.username,
-                                password: hash,
-                                type: "controller",
-                                houseId: answers.houseId
-                            });   
-                        }
+                        var newController = {
+                            username: answers.username,
+                            password: hash,
+                            type: "controller",
+                        };
+                        if (answers.associateHouse)
+                            newController.houseId = answers.houseId;
+                        if (answers.controllerId !== 0)
+                            newController._id = answers.controllerId;
+                        return db.collection("agent").insertOne(newController);
                     })
                     .then(result => {
                         console.log("Inserted controller with id " + 

@@ -90,7 +90,12 @@ const ACTIONS = [
         execute: () => {
             return db.collection("rules").find().toArray()
                 .then(rules => {
-                    console.table(rules);
+                    console.table(rules.map((val) => {
+                        return {
+                            command: JSON.stringify(val.command),
+                            clauses: JSON.stringify(val.clauses)
+                        };
+                    }));
                 });
         }
     },
@@ -159,7 +164,7 @@ const ACTIONS = [
                 })
                 .then((answers) => {
                     return db.collection("nodes").updateOne(answers.node,
-                        { $set: { accepted: 1 }});
+                        { $set: { accepted: 3 }});
                 });
         }
     },
