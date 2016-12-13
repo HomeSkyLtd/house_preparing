@@ -247,6 +247,7 @@ const ACTIONS = [
                             username: answers.username,
                             password: hash,
                             type: "controller",
+                            name: answers.name
                         };
                         if (answers.associateHouse)
                             newController.houseId = answers.houseId;
