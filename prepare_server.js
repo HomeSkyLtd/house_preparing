@@ -252,7 +252,7 @@ const ACTIONS = [
                         if (answers.associateHouse)
                             newController.houseId = answers.houseId;
                         if (answers.controllerId !== 0)
-                            newController._id = answers.controllerId;
+                            newController._id = new mongo.ObjectID(answers.controllerId);
                         return db.collection("agent").insertOne(newController);
                     })
                     .then(result => {
